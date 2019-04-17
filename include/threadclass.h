@@ -8,56 +8,10 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <iostream>
 
-namespace threading
+namespace Threading
 {
-	template<typename T> class concurrent_stack {
-		struct Node 
-		{ 
-			T t; 
-			std::shared_ptr<Node> _next; 
-		};
-
-		std::shared_ptr<Node> _head{ nullptr };
-		// in C++11: remove “atomic_” and remember to use _the special
-		// functions every time you touch the variable
-		concurrent_stack(concurrent_stack&) = delete;
-		void operator=(concurrent_stack&) = delete;
-
-	public:
-		concurrent_stack() = default;
-		~concurrent_stack() = default;
-		class reference {
-			std::shared_ptr<Node> _p;
-		public:
-			reference(std::shared_ptr<Node> p_) : _p{ p_ } { }
-			T& operator* () { return _p->t; }
-			T* operator->() { return &_p->t; }
-		};
-
-		auto find(T t) const {
-			auto p = std::atomic_load(&_head);  // in C++11: atomic_load(&_head)
-			while (p && p->t != t)
-				p = p->_next;
-			return reference(std::move(p));
-		}
-		auto front() const {
-			return reference(std::atomic_load(&_head)); // in C++11: atomic_load(&_head)
-		}
-		void push_front(T t) {
-			auto p = std::make_shared<Node>();
-			p->t = t;
-			p->_next = std::atomic_load(&_head);         // in C++11: atomic_load(&_head)
-			while (!std::atomic_compare_exchange_weak(&_head, &p->_next, p)) {}
-			// in C++11: atomic_compare_exchange_weak(&_head, &p->_next, p);
-		}
-		void pop_front() {
-			auto p = std::atomic_load(&_head);
-			while (p && !std::atomic_compare_exchange_weak(&_head, &p, p->_next)) {}
-			// in C++11: atomic_compare_exchange_weak(&_head, &p, p->_next);
-		}
-	};
-
 	template<typename T>
 	class threadsafe_queue
 	{
@@ -94,8 +48,11 @@ namespace threading
 
 			while (!_done && data_queue.empty())
 			{
-				data_cond.wait(lk, [this]{return !_done || !data_queue.empty();});
+				data_cond.wait(lk, [this]{return _done || !data_queue.empty();});
 			}
+
+			if (_done)
+				return;
 
 			value = data_queue.front();
 			data_queue.pop();
@@ -113,8 +70,11 @@ namespace threading
 
 			while (!_done && data_queue.empty())
 			{
-				data_cond.wait(lk, [this]{return !_done || !data_queue.empty();});
+				data_cond.wait(lk, [this]{return _done || !data_queue.empty();});
 			}
+
+			if (_done)
+				return;
 
 			std::shared_ptr<T> res(std::make_shared<T>(data_queue.front()));
 			data_queue.pop();
@@ -171,11 +131,4 @@ namespace threading
 			}
 		}
 	};
-
-	unsigned long const Hardwarethreads =
-		std::thread::hardware_concurrency();
-	unsigned long Maxthreads = 2; // for scalability if there are millions of contacts/requests we can scale
-	                               // by increasing the number of threads
-	unsigned long const num_threads =
-		std::min(Hardwarethreads != 0 ? Hardwarethreads : 2, Maxthreads);
 }

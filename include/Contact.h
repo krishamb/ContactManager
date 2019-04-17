@@ -5,9 +5,9 @@
 #include <functional> // for std::function
 #include <utility>
 
-#include "threadclass.h"
+#include <threadclass.h>
 
-using namespace threading;
+using namespace Threading;
 
 namespace User
 {
@@ -23,6 +23,10 @@ namespace User
 			_first(first_),
 			_last(last_),
 			_phone(phone_)
+		{
+		}
+
+		Contact()
 		{
 		}
 
@@ -72,7 +76,10 @@ namespace User
 	};
 
 	enum ContactEvents { ADD, UPDATE, NONE};
+	enum CustomerAttr { FIRST, LAST, PHONE };
+
 	constexpr uint8_t numevents = 255;
+	constexpr size_t MAXATTRIBUTES = 3;
 
 	class ContactEventMsg
 	{
@@ -117,8 +124,14 @@ namespace User
 	class ContactObserver
 	{
 	public:
-		virtual void OnContactAdded(Contact contact_) {}
-		virtual void OnContactUpdated(Contact contact_) {}
+		virtual void OnContactAdded(Contact contact_) 
+		{
+			std::cout << "\nDefault Add..";
+		}
+		virtual void OnContactUpdated(Contact contact_) 
+		{
+			std::cout << "\n Default Update..";
+		}
 	};
 
 	class Contacts
@@ -137,24 +150,27 @@ namespace User
 		threadsafe_queue<ContactEventMsg> _eventqueue;
 
 		std::atomic<bool> _done = false;
+		static uint8_t constexpr QUEUERETRY = 3;
+		std::vector<std::thread> _threads;
+		join_threads _joiner;
+		std::atomic<bool> _serverupdate = false;
+		mutable std::mutex  _contactmutex;
 
 		void writetoNotificationQueue(const Contact& contact_, ContactEvents event_);
 		void notifyObservers();
-		void start_thread();
-
-		~Contacts()
-		{
-			_eventqueue.stop();
-			_done = true;
-		}
+		void StartNotifyThreads();
+		void StartUpdateThread();
+		void UpdateContactTimerInterval(unsigned int interval);
 
 		bool addtoContactMap(const Contact& contact_)
 		{
+			std::lock_guard<std::mutex> lk(_contactmutex);
+
 			auto it = _contactmap.find(contact_);
 
 			if (it == _contactmap.end())
 			{
-				_contactmap[contact_] = true;
+				_contactmap[contact_] = true; // just added a bit to indicate valid contact
 				return true;
 			}
 		
@@ -163,24 +179,29 @@ namespace User
 
 		bool updateContactMap(const Contact& oldcontact_, const Contact& newcontact_)
 		{
-			auto it = _contactmap.find(oldcontact_);
+			std::lock_guard<std::mutex> lk(_contactmutex);
 
-			if (it == _contactmap.end())
+			auto it1 = _contactmap.find(oldcontact_); // no race condition here
+
+			if (it1 == _contactmap.end())
 				return false;// contact not found to update
 
-			it = _contactmap.find(newcontact_);
+			auto it2 = _contactmap.find(newcontact_); // no race condition here as well
 
-			if (it != _contactmap.end())
+			if (it2 != _contactmap.end())
 				return false;// new contact already exists, let the user try with some other new contact
 
-			_contactmap.erase(it); // erase old contact
+			_contactmap.erase(it1); // erase old contact that already exists
 
-			return addtoContactMap(newcontact_); // add new contact
+			_contactmap[newcontact_] = true; // just added a bit to indicate valid contact
+
+			return true;
 		}
 
 		std::list<Contact> contactLists() const
 		{
 			std::list<Contact> contacts;
+			std::lock_guard<std::mutex> lk(_contactmutex);
 
 			for (auto& clist : _contactmap)
 				contacts.emplace_back(clist.first);
@@ -216,11 +237,23 @@ namespace User
 		}
 
 	public:
-		Contacts();
+		Contacts(bool serverupdate_ = false);
+
+		~Contacts()
+		{
+			uint8_t ii = 0;
+			while (!_eventqueue.empty() && ++ii <= QUEUERETRY)
+			{
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			_eventqueue.stop();
+			_done = true;
+		}
 
 		// Add a new contact by first name, last name, phone number
 		// Returns true ( contact added ) / false ( contact already exists )
-		bool addContact(const Contact& contact_); 
+		bool addContact(const Contact& contact_);
 
 		// Update a old contact to new contact
 		// Returns true ( contact updated ) / false ( contact cannot be updated )
@@ -230,6 +263,8 @@ namespace User
 		std::list<Contact> listContacts() const; // currently list all the contacts by first name, last name, phone num
 										   // in the future it should list based upon first name or last name or phone number
 
+		bool loadContactsFromJSON(const std::string& str_, size_t& count_);
+
 		// Register a contactObserver to notify if contacts are added/updated, Multiple observers allowed
 		void registerObserver(ContactObserver* observer_); // Register the ContactObserver overriden methods defined
 														   // in the interface
@@ -237,5 +272,8 @@ namespace User
 		// Unregister a prev registered observer
 		void unregisterObserver(ContactObserver* observer_); // Unregister the ContactObserver overriden methods defined
 														   // in the interface
+
+		void EnableServerupdate() { _serverupdate = true; }
+		void DisableServerupdate() { _serverupdate = false; }
 	};
 }
