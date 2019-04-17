@@ -1,14 +1,13 @@
 #pragma once
+#include <iostream>
+
 #include "Contact.h"
 #include "rapidjson\document.h"
-
-#include <iostream>
-#include <typeinfo>
 
 using namespace User;
 using namespace rapidjson;
 
-Contacts::Contacts(bool serverupdate_):_joiner(_threads), _done(false), _serverupdate(serverupdate_)
+Contacts::Contacts(bool serverupdate_): _joiner(_threads), _done(false), _serverupdate(serverupdate_)
 {
 	_observerlist.clear();
 	_eventqueue.clear();
@@ -46,7 +45,7 @@ bool Contacts::isContactvalid(const Contact& contact_)
 
 bool Contacts::updateContact(const Contact & oldcontact_, const Contact & newcontact_)
 {
-	if (!isContactvalid(oldcontact_) || !isContactvalid(newcontact_))
+	if ( !isContactvalid(oldcontact_) || !isContactvalid(newcontact_) )
 		return false;
 
 	bool ret = updateContactMap(oldcontact_, newcontact_);
@@ -168,7 +167,8 @@ void Contacts::StartUpdateThread()
 {
 	try
 	{
-		_threads.push_back(std::thread(&Contacts::UpdateContactTimerInterval, this, 1000));
+
+		_threads.push_back(std::thread(&Contacts::UpdateContactTimerInterval, this, getupdatetimer()));
 	}
 	catch (...)
 	{

@@ -152,7 +152,7 @@ public:
 
 	~MyContactObserver2()
 	{
-		if (_testnum == TESTCASE::TEST7 || _testnum == TESTCASE::TEST5 )
+		if (_testnum == TESTCASE::TEST7 || _testnum == TESTCASE::TEST5)
 		{
 			if (_addcount != _loadcount)
 			{
@@ -303,8 +303,11 @@ void RunMultipleObserversTestCase7()
 
 void RunMultiplethreadsAddUpdateTestCase5()
 {
-	Contacts mycontact(true);
+	Contacts mycontact;
 	size_t result{ 0 };
+
+	mycontact.setupdateTimer(500); // setting timer msecs
+	mycontact.EnableServerupdate(); // Making sure to start update after add + 500 msecs
 
 	std::thread t1(AddContactThread, std::ref(mycontact));
 	std::thread t2(UpdateContactThread, std::ref(mycontact));
@@ -323,7 +326,22 @@ void AddContactThread(Contacts& mycontact)
 	
 	bool ret = mycontact.loadContactsFromJSON(mycontactsupd, result);
 	myobserver.setcount(result);
-	std::this_thread::sleep_for(std::chrono::milliseconds(1400));
+	std::this_thread::sleep_for(std::chrono::milliseconds(2 * mycontact.getupdatetimer())); // Allow update to run after
+	                                                                                    // x msecs to do update, list
+	                                                                                    // concurrently
+
+	auto clist = mycontact.listContacts(); // list contacts should list contacts after update
+
+	auto it = clist.begin();
+
+	std::string str = it->getfirstname();
+
+	if (str.find("AlexanderXXX") != std::string::npos)
+	{
+		std::lock_guard<std::mutex> mutex(mutexg);
+		std::cout << "\nfname: " << it->getfirstname() << " last: " << it->getlastname() << " phone: " << it->getphone() << "\n";
+		std::cout << "\nTEST5 Success\n";
+	}
 }
 
 void UpdateContactThread(Contacts& mycontact)
@@ -332,6 +350,6 @@ void UpdateContactThread(Contacts& mycontact)
 
 	mycontact.registerObserver(&myobserver2);
 	myobserver2.setcount(1);
-	std::this_thread::sleep_for(std::chrono::milliseconds(1400)); // Wait more than what update contacts waits
+	std::this_thread::sleep_for(std::chrono::milliseconds(mycontact.getupdatetimer())); // Wait more than what update contacts waits
 																  // generate updates
 }

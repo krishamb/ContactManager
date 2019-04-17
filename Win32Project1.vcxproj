@@ -18,6 +18,14 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\Contact.cpp" />
+    <ClCompile Include="..\test\test_contact.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\Contact.h" />
+    <ClInclude Include="..\include\threadclass.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{72BACD8E-34D1-4071-81E8-1B3F5DCB08BB}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -80,7 +88,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\csv\Win32Project1\Win32Project1\rapidjson</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\csv\Win32Project1\Win32Project1\rapidjson;C:\csv\Win32Project1\include</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -145,7 +153,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>C:\csv\Win32Project1\Win32Project1</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\csv\Win32Project1\include;C:\csv\Win32Project1\Win32Project1</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -154,15 +162,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\twillo\jsoncontact.cpp" />
-    <ClCompile Include="Jsonparse.cpp" />
-    <ClCompile Include="Contact.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Contact.h" />
-    <ClInclude Include="threadclass.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

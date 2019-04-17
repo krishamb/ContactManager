@@ -155,6 +155,7 @@ namespace User
 		join_threads _joiner;
 		std::atomic<bool> _serverupdate = false;
 		mutable std::mutex  _contactmutex;
+		unsigned int _updatetimer{ 1000 };
 
 		void writetoNotificationQueue(const Contact& contact_, ContactEvents event_);
 		void notifyObservers();
@@ -268,12 +269,29 @@ namespace User
 		// Register a contactObserver to notify if contacts are added/updated, Multiple observers allowed
 		void registerObserver(ContactObserver* observer_); // Register the ContactObserver overriden methods defined
 														   // in the interface
-
 		// Unregister a prev registered observer
 		void unregisterObserver(ContactObserver* observer_); // Unregister the ContactObserver overriden methods defined
-														   // in the interface
+														     // in the interface
+		void EnableServerupdate() 
+		{
+			if (!_serverupdate)
+			{
+				_serverupdate = true;
 
-		void EnableServerupdate() { _serverupdate = true; }
+				StartUpdateThread();
+			}
+		}
+
+		const unsigned int Contacts::getupdatetimer() const
+		{
+			return _updatetimer;
+		}
+
+		void Contacts::setupdateTimer(unsigned int timer_)
+		{
+			_updatetimer = timer_;
+		}
+
 		void DisableServerupdate() { _serverupdate = false; }
 	};
 }
